@@ -4,6 +4,7 @@ import requests
 import pandas as pd
 import numpy as np
 import datetime
+import json
 
 #This will print all columns of a dataframe
 pd.set_option('display.max_columns', None)
@@ -65,7 +66,10 @@ response = requests.get(spacex_url)
 static_json_url='https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/API_call_spacex_api.json'
 
 #Now we decode the response content as a Json and turn it into a Pandas Dataframe
-data = pd.json_normalize(response.json())
+datas= requests.get(static_json_url)
+results = json.loads(datas.text)
+pd.DataFrame(results)
+data = pd.json_normalize(results)
 
 #Print the first 5 rows
 data.head(5)
@@ -112,3 +116,52 @@ getBoosterVersion(data)
 getLaunchSite(data)
 getPayloadData(data)
 getCoreData(data)
+
+# Finally I constructed the dataset using the data i've obtained
+launch_dict = {'FlightNumber': list(data['flight_number']),
+'Date': list(data['date']),
+'BoosterVersion':BoosterVersion,
+'PayloadMass':PayloadMass,
+'Orbit':Orbit,
+'LaunchSite':LaunchSite,
+'Outcome':Outcome,
+'Flights':Flights,
+'GridFins':GridFins,
+'Reused':Reused,
+'Legs':Legs,
+'LandingPad':LandingPad,
+'Block':Block,
+'ReusedCount':ReusedCount,
+'Serial':Serial,
+'Longitude': Longitude,
+'Latitude': Latitude}
+
+# Now I create a Pandas data frame from the dictionary launch_dict
+data1 = pd.DataFrame(launch_dict)
+
+#Looking at the summary of the dataframe
+data1.head(1)
+
+# The next stepp is to filter the dataframe to only include launches from Falcon 9 
+data_falcon9 = data1.loc[data1['BoosterVersion']!='Falcon 1']
+
+#Since we removed some of the values I need to reset the FlightNumber column
+data_falcon9.loc[:,'FlightNumber'] = list(range(1, data_falcon9.shape[0]+1))
+data_falcon9.head(2)
+
+#The next step is to deal with the missing values within the dataset
+data_falcon9.isnull().sum()
+#We can see that we have missing values for 'PayloadMass' and 'LandingPad' 
+#The landing pad column will retain None values to represent when landing pads were not used
+
+#Dealing with the 'PayloadMass' column by replacing na with the mean values of 'PayloadMass'
+# Calculate the mean value of PayloadMass column
+payLoadMassMean = data_falcon9['PayloadMass'].mean()
+# Replace the np.nan values with its mean value
+data_falcon9['PayloadMass'].replace(np.nan, payLoadMassMean, inplace = True)
+
+#Checking the replaced values
+data_falcon9.isnull().sum()
+
+#Export this cleaned Dataset to a csv file for later use
+data_falcon9.to_csv('dataset_part1.csv', index=False)

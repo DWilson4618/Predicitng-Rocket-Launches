@@ -1,4 +1,4 @@
-## COLLECTING THE DATA using REST API ##
+## COLLECTING THE DATA From SpaceX API, using REST API ##
 #
 import requests
 import pandas as pd

@@ -11,3 +11,180 @@ from folium.plugins import MarkerCluster
 from folium.plugins import MousePosition
 from folium.features import DivIcon
 
+# Downloading and reading in the 'spacex_launch_geo.csv' file 
+URL = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/spacex_launch_geo.csv'
+resp = await fetch(URL)
+spacex_csv_file = io.BytesIO((await resp.arrayBuffer()).to_py())
+spacex_df=pd.read_csv(spacex_csv_file)
+
+# Now we can look at the coordinates for each launch site
+spacex_df = spacex_df[['Launch Site', 'Lat', 'Long', 'class']]
+launch_sites_df = spacex_df.groupby(['Launch Site'], as_index=False).first()
+launch_sites_df = launch_sites_df[['Launch Site', 'Lat', 'Long']]
+launch_sites_df
+
+# I then needed to create a folium Map object, with an inital center location to be NASA
+# johnson space center in Houston, Texas
+nasa_coordinate = [29.559684888503615, -95.0830971930759]
+site_map = folium.Map(location=nasa_coordinate, zoom_start=10)
+circle = folium.Circle(nasa_coordinate, radius=1000, color='#d35400', fill=True).add_child(folium.Popup('NASA Johnson Space Center'))
+marker = folium.map.Marker(
+    nasa_coordinate,
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'NASA JSC',
+        )
+    )
+site_map.add_child(circle)
+site_map.add_child(marker)
+
+# Now I'll add a circle for each lauch site in the data frame launch_sites
+
+# Initial the map
+site_map = folium.Map(location=nasa_coordinate, zoom_start=5)
+
+#Circle and name for launch site CCAFS LC-40
+circle1 = folium.Circle([28.562302,-80.577356], radius=1000, color='#d35400', fill=True).add_child(folium.Popup('CCAFS LC-40'))
+marker1 = folium.map.Marker(
+    [28.562302,-80.577356],
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'CCAFS LC-40',
+        )
+    )
+site_map.add_child(circle1)
+site_map.add_child(marker1)
+
+#Circle and name for launch site CCAFS SLC-40
+circle2 = folium.Circle([28.563197,-80.576820], radius=1000, color='#d35400', fill=True).add_child(folium.Popup('CCAFS SLC-40'))
+marker2 = folium.map.Marker(
+    [28.563197,-80.576820],
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'CCAFS SLC-40',
+        )
+    )
+site_map.add_child(circle2)
+site_map.add_child(marker2)
+
+#Circle and name for launch site KSC LC-39A
+circle3 = folium.Circle([28.573255,-80.646895], radius=1000, color='#d35400', fill=True).add_child(folium.Popup('KSC LC-39A'))
+marker3 = folium.map.Marker(
+    [28.573255,-80.646895],
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'KSC LC-39A',
+        )
+    )
+site_map.add_child(circle3)
+site_map.add_child(marker3)
+
+#Circle and name for launch site VAFB SLC-4E
+circle4 = folium.Circle([34.632834,-120.610745], radius=1000, color='#d35400', fill=True).add_child(folium.Popup('VAFB SLC-4E'))
+marker4 = folium.map.Marker(
+    [34.632834,-120.610745],
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % 'VAFB SLC-4E',
+        )
+    )
+site_map.add_child(circle4)
+site_map.add_child(marker4)
+
+# Now we will enhance the map by adding thelaunch outcomes for each site
+spacex_df.tail(10)
+
+# This will take the column 'class' and assign a color based on
+# the success or failure of each launch then create a new column called 'record'
+# and assign the values to each launch in our dataset
+marker_cluster = MarkerCluster()
+marker_color=[]
+for column in spacex_df['class']:
+    if column ==1:
+        marker_color.append('green')
+    else:
+        marker_color.append('red')
+
+spacex_df['record']=marker_color
+spacex_df.head(20)
+
+# Use the new rows to create markers on the map 
+site_map.add_child(marker_cluster)
+
+for index, record in spacex_df.iterrows():
+    marker = folium.map.Marker(
+    [record['Lat'], record['Long']],
+    icon=folium.Icon(color='white', icon_color= record['record'] ))
+    marker_cluster.add_child(marker)
+
+site_map
+
+# We want to explore the the proximites of launch sites
+# First we add MousePosition on the map to get the coordinate for a mouse over a point
+# on the map
+formatter = "function(num) {return L.Util.formatNum(num, 5);};"
+mouse_position = MousePosition(
+    position='topright',
+    separator=' Long: ',
+    empty_string='NaN',
+    lng_first=False,
+    num_digits=20,
+    prefix='Lat:',
+    lat_formatter=formatter,
+    lng_formatter=formatter,
+)
+
+site_map.add_child(mouse_position)
+site_map
+
+# Next we want to define a function that will return the distance of coordinates that we input
+from math import sin, cos, sqrt, atan2, radians
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    # approximate radius of earth in km
+    R = 6373.0
+
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = R * c
+    return distance
+    
+# Now that I defined a function to calculate the distance, i mark down lat, long points of 
+# interest set the values for new variables and pass them as input into my function
+coastline_lat = 28.56311
+coastline_lon = -80.56789
+launch_site_lat = 28.562302
+launch_site_lon = -80.577356
+distance_coastline = calculate_distance(launch_site_lat, launch_site_lon, coastline_lat, coastline_lon)
+distance_coastline
+
+# Now we can add lines to our map to showcase this distance to the coastline
+coordinate = [launch_site_lat, launch_site_lon]
+distance = distance_coastline
+distance_marker = folium.Marker(
+    coordinate,
+    icon=DivIcon(
+        icon_size=(20,20),
+        icon_anchor=(0,0),
+        html='<div style="font-size: 12; color:#d35400;"><b>%s</b></div>' % "{:10.2f} KM".format(distance),
+        )
+    )
+coordinates =[[launch_site_lat, launch_site_lon], [coastline_lat, coastline_lon]]
+lines=folium.PolyLine(locations=coordinates, weight=1)
+site_map.add_child(lines)
+
+# In addition you can show distance to major cities, railways, highways or any point of interest

@@ -1,0 +1,142 @@
+## For this section I will use our cleaned data sets to create predicitve machines
+# based on the relationships we have previously seen between our data set
+#
+# Import the needed libraries
+import piplite
+await piplite.install(['numpy'])
+await piplite.install(['pandas'])
+await piplite.install(['seaborn'])
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from js import fetch
+import io
+
+# Define a function to plot the confusion matrix
+def plot_confusion_matrix(y,y_predict):
+    "this function plots the confusion matrix"
+    from sklearn.metrics import confusion_matrix
+
+    cm = confusion_matrix(y, y_predict)
+    ax= plt.subplot()
+    sns.heatmap(cm, annot=True, ax = ax); #annot=True to annotate cells
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title('Confusion Matrix'); 
+    ax.xaxis.set_ticklabels(['did not land', 'land']); ax.yaxis.set_ticklabels(['did not land', 'landed']) 
+    plt.show() 
+    
+# Load the dataframe, one will be 'data', the other will be 'X'
+URL1 = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_2.csv"
+resp1 = await fetch(URL1)
+text1 = io.BytesIO((await resp1.arrayBuffer()).to_py())
+data = pd.read_csv(text1)
+URL2 = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_3.csv'
+resp2 = await fetch(URL2)
+text2 = io.BytesIO((await resp2.arrayBuffer()).to_py())
+X = pd.read_csv(text2)
+
+# First I'll create a NumPy array from the column 'Class' in the data frame data
+Ydata= pd.Series(data['Class'])
+Y= Ydata.to_numpy()
+print(Y)
+
+# Now I standardize the data in X then reassign it to the variable X
+transform = preprocessing.StandardScaler()
+X = transform.fit_transform(X) 
+X
+
+# Now I split the data set into training and testing and look at the shape of a sample
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=2)
+Y_test.shape
+
+# Next I created a logistic regression object then crreat a GridSearchCV object, to fit 
+# the object and find the best parameters from the dictionary parameters
+parameters ={'C':[0.01,0.1,1],
+             'penalty':['l2'],
+             'solver':['lbfgs']}
+parameters ={"C":[0.01,0.1,1],'penalty':['l2'], 'solver':['lbfgs']}# l1 lasso l2 ridge
+lr=LogisticRegression()
+# GridSearchCV object: logreg_cv
+logreg_cv = GridSearchCV(lr, parameters, cv=10)
+# Fit the data
+logreg_cv.fit(X_train, Y_train)
+
+#Print the best hyperparameters and accuracy scores
+print("tuned hyperparameters :",logreg_cv.best_params_)
+print("accuracy :",logreg_cv.best_score_)
+
+# Next we'll calculate the accuracy on the test data
+logreg_cv.score(X_test, Y_test)
+
+# Next look at the confusion matrix:
+yhat=logreg_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+# Next we'll create a support vector machine object, then create a grid search cv object
+# that we'll fit to find the best parameters from the dictionary parameters
+parameters = {'kernel':('linear', 'rbf','poly','rbf', 'sigmoid'),
+              'C': np.logspace(-3, 3, 5),
+              'gamma':np.logspace(-3, 3, 5)}
+svm = SVC()
+svm_cv = GridSearchCV(svm, parameters, cv=10)
+svm_cv.fit(X_train, Y_train)
+print("tuned hpyerparameters :",svm_cv.best_params_)
+print("accuracy :",svm_cv.best_score_)
+
+# Test the accuracy on the test data and plot the confusion matrix
+svm_cv.score(X_test, Y_test)
+yhat=svm_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+# Create a decision tree classifier object, a grid search object, 
+# and fit to find the best parameters
+parameters = {'criterion': ['gini', 'entropy'],
+     'splitter': ['best', 'random'],
+     'max_depth': [2*n for n in range(1,10)],
+     'max_features': ['auto', 'sqrt'],
+     'min_samples_leaf': [1, 2, 4],
+     'min_samples_split': [2, 5, 10]}
+tree = DecisionTreeClassifier()
+tree_cv = GridSearchCV(tree, parameters, cv=10)
+tree_cv.fit(X_train, Y_train)
+print("tuned hpyerparameters :",tree_cv.best_params_)
+print("accuracy :",tree_cv.best_score_)
+
+# Test the accuracy of the tree cv on the test data and plot the matrix
+tree_cv.score(X_test, Y_test)
+yhat = svm_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+# Next well create a k nearest neighbors object, create a grid search cv object 
+# and fit the object to find the best parameters from the dictionary parameters
+parameters = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+              'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+              'p': [1,2]}
+
+KNN = KNeighborsClassifier()
+knn_cv = GridSearchCV(KNN, parameters, cv=10)
+knn_cv.fit(X_train, Y_train)
+print("tuned hpyerparameters :",knn_cv.best_params_)
+print("accuracy :",knn_cv.best_score_)
+
+# Test the accuracy of the knn_cv model on the test data, and plot the confusion matrix
+knn_cv.score(X_test, Y_test)
+yhat = knn_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+# Now we compare the models and find the one that performs the best
+results_df = {'Method':['Logistic Regression','Support Vector Machine','Decision Tree Classifier','K-nearest Neighbors'],"Accuracy":[0.833333,0.8333333,0.944444,0.8333333]}
+dfr=pd.DataFrame(results_df)
+print(dfr)
+ax=dfr.plot.barh(x='Method',y='Accuracy',rot=0)
+
+# We can see that the Decision Tree Classifier has the best performance

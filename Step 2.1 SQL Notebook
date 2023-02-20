@@ -1,0 +1,97 @@
+## Performing some Exploratory Data Analysis to find patterns in the data ##
+#
+# This step required loading the data into IBM DB2, this allowed me to perfrom SQL select 
+# statements on the data set to easily pull relevant information. 
+
+# Load the Data into the DB2 Database on IBM Cloud
+# Open the console, open the Load tool, select/drag the .csv file for the dataset. Next create a new
+# table, and then follow the steps on-screen to load the data. Name the new table as follows:
+# SPACEXDATASET, make sure to change the date format to DD-MM-YYY HH:MM:SS, and make sure the 
+# PAYLOAD_MASS_KG data type is set to INTEGER. Once the data loads youre ready to connect and 
+# perfrom SQL queries on the data.
+
+# Import the following libraries and connect to the database
+!pip install sqlalchemy==1.3.9
+%load_ext sql
+import csv, sqlite3
+con = sqlite3.connect("my_data1.db")
+cur = con.cursor()
+!pip install -q pandas==1.1.5
+%sql sqlite:///my_data1.db
+import pandas as pd
+df = pd.read_csv("https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/labs/module_2/data/Spacex.csv")
+df.to_sql("SPACEXTBL", con, if_exists='replace', index=False,method="multi")
+
+# Now that you are connected you can perform sql queries on the Dataset
+
+# Look at the dataset 
+%sql SELECT * FROM SPACEXTBL;
+
+# Lets look at the unique launch sites in the space mission
+%%sql
+select distinct(Launch_Site) 
+from SPACEXTBL;
+
+# Look at 5 records where the launch sites begin with the string 'CCA'
+%%sql 
+select * 
+from SPACEXTBL 
+where Launch_Site 
+like 'CCA%'
+limit 5;
+
+# What is the total payload mass carried by boosters launched by NASA (CRS)
+%%sql
+select SUM(PAYLOAD_MASS__KG_)
+from SPACEXTBL
+where Customer like "%CRS%";
+
+# What is the average payload mass carried by booster version F9 v1.1
+%%sql
+select AVG(PAYLOAD_MASS__KG_) As "Average Payload in KG"
+from SPACEXTBL
+where Booster_Version like "%v1.1%";
+
+# List the date when the first succesful landing outcome in ground pad was achieved
+%%sql
+SELECT * 
+FROM SPACEXTBL
+WHERE "Landing _Outcome" = "Success (ground pad)"
+order by date 
+limit 1;
+
+# What boosters have success in drone ship and have payload mass greater than 4000 and less than 6000
+%%sql
+select Booster_Version, PAYLOAD_MASS__KG_
+from SPACEXTBL
+where "Landing _Outcome" = "Success (drone ship)" 
+and PAYLOAD_MASS__KG_ between 4000 and 6000;
+
+# What is the total number of successful and failure mission outcomes
+%%sql 
+select Mission_Outcome, count(*) as 'Count'
+from SPACEXTBL
+group by Mission_Outcome;
+
+# List the names of the booster versions which have carried the maximum payload mass
+%%sql
+SELECT distinct(Booster_Version), PAYLOAD_MASS__KG_
+FROM SPACEXTBL 
+WHERE PAYLOAD_MASS__KG_ IN (
+    SELECT MAX(PAYLOAD_MASS__KG_) FROM SPACEXTBL);
+
+# What is the Month, Booster Version, Launch Site of the Landing Outcomes for the months in year 2015
+%%sql 
+SELECT substr(Date, 4, 2) as month,booster_version,"Landing _Outcome", "launch_site"
+from SPACEXTBL 
+where "Landing _Outcome" = 'Failure (drone ship)' and substr(Date,7,4)='2015';
+
+#Rank the count of successful landing outcomes between 04-06-2010 and 20-03-2017 ordered by date
+%%sql
+SELECT "DATE","Landing _Outcome",count("Landing _Outcome")as 'COUNT'
+from SPACEXTBL 
+where substr(Date,7,4) || substr(Date,4,2) || substr(Date,1,2) between '20100604' and '20170320'
+group by "Landing _Outcome" 
+order by substr(Date,7,4);
+
+# With the results of each query you can begin to build an understanding of the dataset

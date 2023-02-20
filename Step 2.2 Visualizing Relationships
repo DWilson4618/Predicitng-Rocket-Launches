@@ -1,0 +1,92 @@
+## Now that we have a cleaned dataset we can begin to visualize the data to gain a better understanding
+## of the data and the relationships between the variables
+#
+# Import the required Libraries
+import piplite
+await piplite.install(['numpy'])
+await piplite.install(['pandas'])
+await piplite.install(['seaborn'])
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from js import fetch
+import io
+
+# Now load the data into a dataframe and print the first few rows 
+URL = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_2.csv"
+resp = await fetch(URL)
+dataset_part_2_csv = io.BytesIO((await resp.arrayBuffer()).to_py())
+df=pd.read_csv(dataset_part_2_csv)
+df.head(5)
+
+# Lets see how the 'FlightNumber' and 'Payload' variables would affect the launch outcome. 
+sns.catplot(y="PayloadMass", x="FlightNumber", hue="Class", data=df, aspect = 5)
+plt.xlabel("Flight Number",fontsize=20)
+plt.ylabel("Pay load Mass (kg)",fontsize=20)
+plt.show()
+
+# Visualize the realtionship between the 'FlightNumber' and 'LaunchSite' with the hue of 'Class'
+sns.catplot(y="LaunchSite", x="FlightNumber", hue="Class", data=df, aspect = 5)
+plt.xlabel("Flight Number",fontsize=20)
+plt.ylabel("Pay load Mass (kg)",fontsize=20)
+plt.show()
+
+# Visualize the relationship between the 'Payload' and 'LaunchSite' with the hue of 'Class'
+sns.catplot(y="LaunchSite", x="PayloadMass", hue="Class", data=df, aspect = 5)
+plt.xlabel("Flight Number",fontsize=20)
+plt.ylabel("Pay load Mass (kg)",fontsize=20)
+plt.show()
+
+# Visualize the success rate of each orbit type 
+sns.barplot(x="Orbit", y="Class", data=df)
+plt.xlabel("Orbit Type",fontsize=20)
+plt.ylabel("Success Rate",fontsize=20)
+plt.show()
+
+# Visualize the relationship between the 'FlightNumber' and 'Orbit' with hue of 'Class'
+sns.catplot(y="Orbit", x="FlightNumber", hue="Class", data=df, aspect = 2)
+plt.xlabel("Flight Number",fontsize=20)
+plt.ylabel("Orbit Type",fontsize=20)
+plt.show()
+
+# Visualize the realtionship between the 'PayloadMass' and 'Orbit' with hue of 'Class'
+sns.catplot(y="Orbit", x="PayloadMass", hue="Class", data=df, aspect = 3)
+plt.xlabel("Payload in (kg)",fontsize=20)
+plt.ylabel("Orbit Type",fontsize=20)
+plt.show()
+
+# Next we want to visualize the relationship between the 'Year' and the success rate 'Class'
+# To do this we need to define a function that will extract the year from the dataset 
+year=[]
+def Extract_year():
+    for i in df["Date"]:
+        year.append(i.split("-")[0])
+    return year
+Extract_year()
+df['Date'] = year
+df.head()
+
+# Now Visualize the realtionship between the year 'Date' and the success rate 'Class'
+sns.lineplot(y='Class', x="Date", data=df)
+plt.xlabel("Year",fontsize=20)
+plt.ylabel("Success Rate",fontsize=20)
+plt.show()
+
+# At this point you should be able to examine the plots and make some connections about the importance
+# and patterns of certain variables, We will select those variables that have an actual impact on 
+# the success rate of launches attempted. 
+features = df[['FlightNumber', 'PayloadMass', 'Orbit', 'LaunchSite', 'Flights', 'GridFins', 'Reused', 'Legs', 'LandingPad', 'Block', 'ReusedCount', 'Serial']]
+features.head()
+
+# In order to make use of our columns that have categorical variables we must convert them into 
+# one hot encoded values and merge them into a new variable that holds the the entire data
+features_one_hot= pd.get_dummies(features[["Orbit", "LaunchSite", "LandingPad","Serial"]])
+features_one_hot.head()
+
+# Now that we have the columns converted into One hot encoded variables we must assign the right
+# data types to these columns 
+features_one_hot = features_one_hot.astype('float64').dtypes
+
+# Now we can save our converted Data frame for use in regression models
+features_one_hot.to_csv('dataset_part_3.csv', index=False)

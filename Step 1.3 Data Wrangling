@@ -1,1 +1,67 @@
+## Performing some Exploratory Data Analysis to find patterns in the data ##
+#
+#Import the required libraries
+import piplite
+await piplite.install(['numpy'])
+await piplite.install(['pandas'])
+import pandas as pd
+import numpy as np
+from js import fetch
+import io
 
+# Load in the datasets -- This cleaned dataset was provided
+URL = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_1.csv'
+resp = await fetch(URL)
+dataset_part_1_csv = io.BytesIO((await resp.arrayBuffer()).to_py())
+df=pd.read_csv(dataset_part_1_csv)
+
+#Check the Dataframe
+df.head(10)
+
+#Identify and calculate the percentage of the missing values in each attribute
+df.isnull().sum()/df.shape[0]*100
+
+#Check the data types of each attribute
+df.dtypes
+
+#The data contains several Space X launch facilites located in the 'LaunchSite' columns
+#Find the number of launches for each launch site
+df.LaunchSite.value_counts
+
+#Each of these launches aim to a dedicated orbit or orbit type
+#I calculated the numer and occurrence of each orbit
+df.Orbit.value_counts
+
+#Now we'll find out the landing outcomes of each launch and assign the values to a new variable
+landing_outcomes = df.Outcome.value_counts()
+landing_outcomes
+
+#Next enumerate the landing_outcomes varaible so we separate good outcomes compared to bad outcomes
+for i,outcome in enumerate(landing_outcomes.keys()):
+    print(i,outcome)
+    
+#create a new variable for the bad outcomes
+bad_outcomes=set(landing_outcomes.keys()[[1,3,5,6,7]])
+bad_outcomes
+
+# Now that we have the outcomes separated we can create a landing outcome 
+# label from the 'Outcome' column
+landing_class=[]
+for outcome in df['Outcome']:
+    if outcome in bad_outcomes:
+        landing_class.append(0)
+    else:
+        landing_class.append(1)
+print(landing_class)
+
+# This variable will represent the classification variable that represents the outcome of each launch
+# If the value is zero, the first stage did not land successfully, one indicates success
+# This assigns the values to the dataframe and prints the first 8 rows of the column for reassurance
+df['Class']=landing_class
+df[['Class']].head(8)
+
+# You can now use this column to determine the overall average success rate of launches
+df['Class'].mean()
+
+# Save the dataframe to be used later for deeper analysis and model building
+df.to_csv("dataset_part_2.csv", index=False)

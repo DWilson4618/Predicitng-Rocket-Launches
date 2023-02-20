@@ -1,5 +1,5 @@
-## For this section I will use our cleaned data sets to create predicitve machines
-# based on the relationships we have previously seen between our data set
+## For this section we will use the cleaned dataset to create a machine learning pipeline
+# to predict if the first stage will land
 #
 # Import the needed libraries
 import piplite
